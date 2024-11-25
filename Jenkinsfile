@@ -76,67 +76,39 @@ pipeline {
             agent { label 'main' }
             steps {
                 script {
-                    sh """
-                    S3_BUCKET="lwf-dw-storage"
-                    S3_PATH="s3://$S3_BUCKET/hdf5-files/"
-                    EXPIRATION="86400"  # 24 hours in seconds
-                    
-                    echo "Generating a 24-hour download link..."
-                    DOWNLOAD_URL=\$(aws s3 presign "\${S3_PATH}" --expires-in \$EXPIRATION)
-                    """
+                    def s3Bucket = "lwf-dw-storage"
+                    def s3Path = "s3://${s3Bucket}/pipeline-experiments/"
+                    def expiration = 86400 // 24 hours in seconds
+                    echo "Generating a 24-hour upload link..."
+                    env.UPLOAD_URL = sh(
+                        script: "aws s3 presign \"${s3Path}\" --expires-in ${expiration}",
+                        returnStdout: true
+                    ).trim()
+                    echo "Generated UPLOAD_URL: ${env.UPLOAD_URL}"
                 }
             }
         }
         stage('Collect Data & Upload from Edge') {
-            agent { label 'edgeil001' }
+            agent { label 'edgeuk005' }
             steps {
                 script {
-                   writeFile file: 'timestamp_logger.sh', text: '''#!/bin/bash                    
-echo "Stage 2, Step 1: hello ${env.TODAY_DATE}"
-
-# Define the output file
-output_file="timestamps.log"
-count=0
-# Loop 10 times
-while [ $count -lt 10 ]; do
-  # Get the current timestamp
-  timestamp=$(date +"%Y-%m-%d %H:%M:%S")
-  
-  # Print the timestamp to the terminal
-  echo "$timestamp"
-  echo "$count"
-  # Append the timestamp to the file
-  echo "$timestamp" >> "$output_file"
-  # Increment the counter
-  count=$((count + 1))
-  # Wait for 10 seconds
-  sleep 10
-done
-
-echo "Done! Timestamps written to $output_file"
-                    '''
-                    
-                    // Make the script executable
-                    sh 'chmod +x timestamp_logger.sh'
-
-                    // Run the script
-                    sh './timestamp_logger.sh'                    
+                    sh """
+                    aws s3 cp /opt/lwf/etc/leakdetection/preprocessing/1732558825.npz "${env.UPLOAD_URL}"
+                    """
+                
                 }
-                sh 'echo "Stage 2, Step 2: hello"'
             }
         }
         stage('Update DataWarehouse DB') {
             agent { label 'main' }
             steps {
-                sh 'echo "Stage 3, Step 1: hello"'
-                sh 'echo "Stage 3, Step 2: hello"'
+                sh 'echo TODO'
             }
         }
         stage('Send Notification') {
             agent { label 'main' }
             steps {
-                sh 'echo "Stage 3, Step 1: hello"'
-                sh 'echo "Stage 3, Step 2: hello"'
+                sh 'echo TODO'
             }
         }
         
